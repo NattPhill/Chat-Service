@@ -23,7 +23,8 @@ object ChatService {
 
         // Проверяем, существует ли чат между отправителем и получателем
         val existingChat =
-            chats.find { it.user1 == user && it.user2 == message.sender || it.user1 == message.sender && it.user2 == user }
+            chats.asSequence()
+                .find { it.user1 == user && it.user2 == message.sender || it.user1 == message.sender && it.user2 == user }
 
         if (existingChat == null) {
             // Если чата нет, создаем новый чат
@@ -42,9 +43,9 @@ object ChatService {
 
     //Видеть, сколько чатов не прочитано (например, service.getUnreadChatsCount).
     // В каждом из таких чатов есть хотя бы одно непрочитанное сообщение.
-    fun getUnreadChatsCount(): Int = chats.count { chat ->
-        chat.messages.any { !it.isRead }
-    }
+    fun getUnreadChatsCount(): Int = chats.asSequence()
+        .filter { chat -> chat.messages.any { !it.isRead } }
+        .count()
 
     //Получить список чатов (например, service.getChats).
     //fun getChats(): MutableList<Chat> = chats
@@ -52,14 +53,16 @@ object ChatService {
     //Получить список последних сообщений из чатов (можно в виде списка строк).
     // Если сообщений в чате нет (все были удалены), то пишется «нет сообщений».
     fun getLastMessages(): List<String> {
-        return chats.map { chat ->
-            val lastMessage = chat.messages.lastOrNull()
-            if (lastMessage != null) {
-                "${lastMessage.text}"
-            } else {
-                "Нет сообщений"
+        return chats.asSequence()
+            .map { chat ->
+                val lastMessage = chat.messages.lastOrNull()
+                if (lastMessage != null) {
+                    "${lastMessage.text}"
+                } else {
+                    "Нет сообщений"
+                }
             }
-        }
+            .toList()
     }
 
     //    Получить список сообщений из чата, указав:
@@ -67,18 +70,22 @@ object ChatService {
     //    количество сообщений.
     //    После того как вызвана эта функция, все отданные сообщения автоматически считаются прочитанными.
     fun getMessagesFromChat(userId: Int, count: Int): List<Message> {
-        val chat = chats.find { it.user1.userId == userId || it.user2.userId == userId }
+        val chat = chats.asSequence()
+            .find { it.user1.userId == userId || it.user2.userId == userId }
             ?: throw IllegalArgumentException("Чат с пользователем с ID $userId не найден")
 
-        val messagesToReturn = chat.messages.takeLast(count)
-        messagesToReturn.forEach { it.isRead = true }
-        return messagesToReturn
+        return chat.messages.asSequence()
+            .toList()       // Преобразуем в список, чтобы использовать takeLast
+            .takeLast(count)
+            .asSequence()      // Преобразуем обратно в последовательность для ленивой обработки
+            .onEach { it.isRead = true }
+            .toList()
     }
 
     //редактировать сообщение
     //fun editMessage
     fun editMessage(messageId: Int, newText: String) {
-        val message = messages.find { it.messageId == messageId }
+        val message = messages.asSequence().find { it.messageId == messageId }
             ?: throw IllegalArgumentException("Сообщение с ID $messageId не найдено")
 
         message.text = newText
