@@ -74,10 +74,9 @@ object ChatService {
             .find { it.user1.userId == userId || it.user2.userId == userId }
             ?: throw IllegalArgumentException("Чат с пользователем с ID $userId не найден")
 
-        return chat.messages.asSequence()
-            .toList()       // Преобразуем в список, чтобы использовать takeLast
-            .takeLast(count)
-            .asSequence()      // Преобразуем обратно в последовательность для ленивой обработки
+        return chat.messages.asReversed()
+            .asSequence()
+            .take(count)
             .onEach { it.isRead = true }
             .toList()
     }
